@@ -1,0 +1,260 @@
+import { navigate } from '../main';
+import { gameState } from '../store/GameState';
+import { TicketGenerator, Ticket } from '../utils/TicketGenerator';
+import { CustomAlert } from '../utils/CustomAlert';
+
+export function PlayerView(): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'player-container fade-in';
+  
+  let myTickets: Ticket[] = [];
+  // store state of clicked cells: locked (boolean) or selected (boolean)
+  // maps ticketIndex -> rowIndex -> colIndex -> { selected: boolean, locked: boolean }
+  let ticketStates: { selected: boolean, locked: boolean }[][][] = [];
+  let disqualifiedTickets: boolean[] = [];
+
+  const renderJoinForm = () => {
+    container.innerHTML = `
+      <div style="padding: 2rem; display: flex; flex-direction: column; gap: 1rem;">
+        <h2 style="color: var(--primary-color)">Join Game</h2>
+        <input type="text" id="host-id" placeholder="Host ID" style="padding: 0.8rem; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem;">
+        <input type="text" id="player-name" placeholder="Your Name" value="Player" style="padding: 0.8rem; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem;">
+        <select id="ticket-count" style="padding: 0.8rem; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem;">
+          <option value="1">1 Ticket</option>
+          <option value="2">2 Tickets</option>
+          <option value="3">3 Tickets</option>
+          <option value="4">4 Tickets</option>
+          <option value="5">5 Tickets</option>
+          <option value="6">6 Tickets</option>
+        </select>
+        <button id="btn-join" class="primary-btn">Join Game</button>
+        <button id="btn-back" class="primary-btn" style="background:#666;">Back</button>
+      </div>
+    `;
+
+    container.querySelector('#btn-back')?.addEventListener('click', () => navigate('home'));
+    container.querySelector('#btn-join')?.addEventListener('click', () => {
+      const hostId = (container.querySelector('#host-id') as HTMLInputElement).value;
+      const playerName = (container.querySelector('#player-name') as HTMLInputElement).value;
+      const count = parseInt((container.querySelector('#ticket-count') as HTMLSelectElement).value, 10);
+      
+      if (!hostId) { 
+        CustomAlert("Missing Input", "Please enter Host ID", "error"); 
+        return; 
+      }
+      
+      const btn = container.querySelector('#btn-join') as HTMLButtonElement;
+      const originalText = btn.innerText;
+      btn.innerText = "Waiting for Host Approval...";
+      btn.disabled = true;
+
+      gameState.onJoinApproved = () => {
+        // Generate tickets only after approval
+        const fullSet = TicketGenerator.generateSetOf6();
+        myTickets = fullSet.slice(0, count);
+        initTicketStates();
+        renderTickets();
+      };
+      
+      gameState.onJoinRejected = () => {
+        CustomAlert("Host Denied", "Your join request was rejected by the Host.", "error");
+        btn.innerText = originalText;
+        btn.disabled = false;
+        gameState.disconnect();
+      };
+
+      gameState.onJoinError = (msg) => {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        gameState.disconnect();
+      };
+      
+      gameState.joinRoom(hostId, playerName, count);
+    });
+  };
+
+  const initTicketStates = () => {
+    disqualifiedTickets = myTickets.map(() => false);
+    ticketStates = myTickets.map(() =>
+      Array.from({length: 3}, () =>
+        Array.from({length: 9}, () => ({ selected: false, locked: false }))
+      )
+    );
+  };
+
+  gameState.onNumberCalled = (num: number) => {
+    // When a new number is called, lock all currently selected numbers
+    for (let t = 0; t < ticketStates.length; t++) {
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (ticketStates[t][r][c].selected) {
+            ticketStates[t][r][c].locked = true;
+          }
+        }
+      }
+    }
+    renderTicketsUIOnly();
+  };
+
+  gameState.onClaimResult = (result: any) => {
+    if (result.isValid) {
+      renderTicketsUIOnly();
+    }
+    if (gameState.peer && result.playerSocketId === gameState.peer.id) {
+      if (result.isValid) {
+        CustomAlert("Claim Approved!", `Congratulations! Your claim for ${result.pattern} on Ticket ${result.ticketIndex + 1} was APPROVED!`, "success");
+      } else {
+        CustomAlert("Bogey!", `Your claim for ${result.pattern} on Ticket ${result.ticketIndex + 1} was REJECTED by Host. Ticket is Disqualified.`, "error");
+        disqualifiedTickets[result.ticketIndex] = true;
+        renderTicketsUIOnly();
+      }
+    } else {
+      if (result.isValid) {
+        CustomAlert("Prize Claimed!", `Player ${result.playerName} has successfully claimed ${result.pattern}!`, "info");
+      }
+    }
+  };
+
+  const renderTickets = () => {
+    container.innerHTML = `
+      <header class="host-header" style="background: var(--primary-color); color: white; padding: 0.8rem; position: relative; text-align: center;">
+        <div style="position: absolute; left: 1rem; top: 0.8rem; font-size: 0.75rem; opacity: 0.9;">Room: ${gameState.hostId}</div>
+        <h3 style="margin: 0; font-size: 1.1rem; display: inline-block;">${gameState.playerName.toUpperCase()}</h3>
+      </header>
+      <div id="tickets-container" style="padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; height: calc(100vh - 150px);">
+      </div>
+      <div style="padding: 1rem;">
+        <button id="btn-leave" class="primary-btn" style="width: 100%; background: #666;"><i class="fa-solid fa-arrow-left"></i> Leave</button>
+      </div>
+    `;
+    
+    container.querySelector('#btn-leave')?.addEventListener('click', () => {
+      gameState.disconnect();
+      window.location.reload();
+    });
+
+    renderTicketsUIOnly();
+  };
+
+  const renderTicketsUIOnly = () => {
+    const tContainer = container.querySelector('#tickets-container');
+    if (!tContainer) return;
+    tContainer.innerHTML = '';
+
+    myTickets.forEach((ticket, tIndex) => {
+      const isBogey = disqualifiedTickets[tIndex];
+
+      const ticketEl = document.createElement('div');
+      ticketEl.style.backgroundColor = isBogey ? '#ffebee' : 'white';
+      ticketEl.style.border = isBogey ? '2px solid red' : '2px solid var(--text-main)';
+      ticketEl.style.borderRadius = '8px';
+      ticketEl.style.overflow = 'hidden';
+      ticketEl.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+      ticketEl.style.flexShrink = '0'; // Prevents flexbox from squishing the ticket height
+      ticketEl.style.opacity = isBogey ? '0.6' : '1';
+      
+      const headerDiv = document.createElement('div');
+      headerDiv.style.background = isBogey ? 'red' : 'var(--text-main)';
+      headerDiv.style.color = 'white';
+      headerDiv.style.padding = '0.3rem 0.5rem';
+      headerDiv.style.display = 'flex';
+      headerDiv.style.justifyContent = 'space-between';
+      headerDiv.style.alignItems = 'center';
+      
+      const titleSpan = document.createElement('span');
+      titleSpan.style.fontSize = '0.8rem';
+      titleSpan.style.fontWeight = 'bold';
+      titleSpan.style.letterSpacing = '1px';
+      titleSpan.innerText = `TICKET ${tIndex + 1} ${isBogey ? '(DISQUALIFIED)' : ''}`;
+      headerDiv.appendChild(titleSpan);
+
+      if (!isBogey) {
+        const availablePatterns = [
+          "Early 5", "Top Row", "Middle Row", "Bottom Row", "Full House"
+        ].filter(p => !gameState.approvedClaims.includes(p));
+
+        if (availablePatterns.length > 0) {
+          const claimContainer = document.createElement('div');
+          claimContainer.style.display = 'flex';
+          claimContainer.style.gap = '0.3rem';
+          
+          const optionsHtml = availablePatterns.map(p => `<option value="${p}">${p}</option>`).join('');
+          claimContainer.innerHTML = `
+            <select class="claim-select" style="padding: 0.1rem; border-radius: 3px; font-size: 0.7rem; color: black;">
+              ${optionsHtml}
+            </select>
+            <button class="btn-claim" style="padding: 0.1rem 0.4rem; font-size: 0.7rem; border-radius: 3px; border: none; background: var(--primary-color); color: white; cursor: pointer; font-weight: bold;">Claim</button>
+          `;
+          
+          claimContainer.querySelector('.btn-claim')?.addEventListener('click', () => {
+             const pattern = (claimContainer.querySelector('.claim-select') as HTMLSelectElement).value;
+             gameState.claimDividend(tIndex, pattern, ticket);
+             CustomAlert("Claim Sent", `Claim for ${pattern} on Ticket ${tIndex + 1} sent to Host for verification!`, "info");
+          });
+          
+          headerDiv.appendChild(claimContainer);
+        } else {
+          const infoSpan = document.createElement('span');
+          infoSpan.style.fontSize = '0.7rem';
+          infoSpan.style.fontStyle = 'italic';
+          infoSpan.innerText = 'All prizes claimed';
+          headerDiv.appendChild(infoSpan);
+        }
+      }
+
+      ticketEl.appendChild(headerDiv);
+      
+      const grid = document.createElement('div');
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(9, 1fr)';
+      
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 9; c++) {
+          const val = ticket[r][c];
+          const cell = document.createElement('div');
+          // Removed aspect ratio and reduced padding for maximum density
+          cell.style.border = '1px solid #ddd';
+          cell.style.display = 'flex';
+          cell.style.alignItems = 'center';
+          cell.style.justifyContent = 'center';
+          cell.style.fontSize = '1.1rem';
+          cell.style.fontWeight = '700';
+          cell.style.padding = '2px 0';
+          cell.style.color = 'var(--text-main)';
+          cell.style.cursor = (val && !isBogey) ? 'pointer' : 'default';
+          cell.style.userSelect = 'none';
+          
+          if (val) {
+            cell.innerText = val.toString();
+            const state = ticketStates[tIndex][r][c];
+            
+            if (state.selected) {
+              cell.style.backgroundColor = isBogey ? '#ef9a9a' : 'var(--primary-color)';
+              cell.style.color = 'white';
+            } else {
+              cell.style.backgroundColor = isBogey ? 'transparent' : '#fae1e1';
+            }
+
+            cell.addEventListener('click', () => {
+              if (!state.locked && !isBogey) {
+                state.selected = !state.selected;
+                renderTicketsUIOnly();
+              }
+            });
+          } else {
+            cell.style.backgroundColor = isBogey ? 'transparent' : '#f9f9f9';
+          }
+          
+          grid.appendChild(cell);
+        }
+      }
+      ticketEl.appendChild(grid);
+
+      tContainer.appendChild(ticketEl);
+    });
+  };
+
+  renderJoinForm();
+
+  return container;
+}

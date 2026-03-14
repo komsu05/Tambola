@@ -1,0 +1,128 @@
+:root {
+  --primary-color: #d32f2f; /* Red from the screenshot for a classic Tambola feel */
+  --primary-hover: #b71c1c;
+  --secondary-color: #212121;
+  --bg-color: #f5f5f5;
+  --card-bg: #ffffff;
+  --text-main: #333333;
+  --text-light: #757575;
+  --font-family: 'Outfit', sans-serif;
+  --border-radius: 12px;
+  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100%;
+  max-width: 480px; /* Mobile friendly limit */
+  min-height: 100vh;
+  background: var(--card-bg);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utilities */
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Home View */
+.home-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
+  padding: 2rem;
+  text-align: center;
+}
+
+.home-header {
+  margin-bottom: 3rem;
+}
+
+.logo-icon {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.main-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--text-light);
+}
+
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  width: 100%;
+}
+
+.primary-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  transition: var(--transition);
+  box-shadow: 0 4px 10px rgba(211, 47, 47, 0.3);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primary-btn:hover, .primary-btn:active {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(211, 47, 47, 0.4);
+}
+
+.primary-btn i {
+  font-size: 1.3rem;
+}
+
+/* Buttons utility */
+button {
+  outline: none;
+}
+button:active {
+  transform: scale(0.97);
+}
