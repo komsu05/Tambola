@@ -4,12 +4,14 @@ import { TambolaEngine, TambolaValidator } from '../utils/GameLogic';
 import { TicketGenerator, Ticket } from '../utils/TicketGenerator';
 import { CustomAlert } from '../utils/CustomAlert';
 import { CustomPrompt } from '../utils/CustomPrompt';
+import { VoiceUtils } from '../utils/VoiceUtils';
 
 export function HostPlayerView(): HTMLElement {
   const container = document.createElement('div');
   container.className = 'host-player-container fade-in';
 
   let voiceEnabled = true;
+  let voiceLanguage: 'en' | 'te' | 'both' = 'both';
   let isPlaying = false;
   let timerInterval = 4000;
   let intervalId: any = null;
@@ -137,14 +139,58 @@ export function HostPlayerView(): HTMLElement {
 
   const speakNumber = (num: number) => {
     if (!voiceEnabled) return;
-    let text = num.toString();
-    if (num > 9) {
-      const chars = text.split('');
-      text = `${chars[0]} ${chars[1]}, ${num}`;
+
+    window.speechSynthesis.cancel(); // Stop any ongoing speech
+
+    const speakEnglish = () => {
+      let text = num.toString();
+      // Skip digits if both languages are active
+      if (num > 9 && voiceLanguage !== 'both') {
+        const chars = text.split('');
+        text = `${chars[0]} ${chars[1]}, ${num}`;
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.lang = 'en-US';
+      
+      if (voiceLanguage === 'both') {
+        utterance.onend = () => {
+          setTimeout(() => speakTelugu(), 150);
+        };
+      }
+      window.speechSynthesis.speak(utterance);
+    };
+
+    const speakTelugu = () => {
+      const teluguName = VoiceUtils.getTeluguNumberName(num);
+      const teluguDigits = VoiceUtils.getTeluguDigits(num);
+      // Skip digits if both languages are active
+      const text = voiceLanguage === 'both' ? teluguName : `${teluguDigits}, ${teluguName}`;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.85;
+      
+      const teVoice = VoiceUtils.getTeluguVoice();
+      if (teVoice) {
+        utterance.voice = teVoice;
+        utterance.lang = teVoice.lang;
+      } else {
+        utterance.lang = 'te';
+      }
+      
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (voiceLanguage === 'en' || voiceLanguage === 'both') {
+      speakEnglish();
+    } else if (voiceLanguage === 'te') {
+      speakTelugu();
     }
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+  };
+
+  // Warm up voices
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    VoiceUtils.logAvailableVoices();
   };
 
   const callNextNumber = () => {
@@ -341,20 +387,65 @@ export function HostPlayerView(): HTMLElement {
     });
 
     container.querySelector('#btn-settings')?.addEventListener('click', () => {
-      CustomPrompt("Timer Settings", "Enter timer interval in seconds (4-10):", (timerInterval/1000).toString(), "Seconds", "number", (val) => {
-        if (val) {
-          const secs = parseInt(val, 10);
-          if (secs >= 4 && secs <= 10) {
-            timerInterval = secs * 1000;
-            if (isPlaying) {
-              pauseTimer();
-              startTimer();
-            }
-          } else {
-            CustomAlert("Invalid Input", "Must be between 4 and 10 seconds.", "error");
+      const modal = document.createElement('div');
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.width = '100vw';
+      modal.style.height = '100vh';
+      modal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+      modal.style.display = 'flex';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.style.zIndex = '2000';
+
+      modal.innerHTML = `
+        <div style="background: white; padding: 1.5rem; border-radius: 12px; width: 90%; max-width: 350px; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+          <h3 style="color: var(--primary-color); margin-top: 0; margin-bottom: 1rem;"><i class="fa-solid fa-gear"></i> Game Settings</h3>
+          
+          <div style="margin-bottom: 1.2rem;">
+            <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem;">Call Interval (Seconds)</label>
+            <input type="number" id="setting-timer" value="${timerInterval / 1000}" min="4" max="10" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #ccc;">
+            <small style="color: #666;">Choose between 4 and 10 seconds</small>
+          </div>
+
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem;">Voice Language</label>
+            <select id="setting-lang" style="width: 100%; padding: 0.6rem; border-radius: 6px; border: 1px solid #ccc; background: white;">
+              <option value="en" ${voiceLanguage === 'en' ? 'selected' : ''}>English Only</option>
+              <option value="te" ${voiceLanguage === 'te' ? 'selected' : ''}>Telugu Only</option>
+              <option value="both" ${voiceLanguage === 'both' ? 'selected' : ''}>Both (En + Te)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 0.8rem;">
+            <button id="set-cancel" class="primary-btn" style="flex: 1; background: #666;">Cancel</button>
+            <button id="set-save" class="primary-btn" style="flex: 1;">Save</button>
+          </div>
+        </div>
+      `;
+
+      modal.querySelector('#set-cancel')?.addEventListener('click', () => document.body.removeChild(modal));
+      modal.querySelector('#set-save')?.addEventListener('click', () => {
+        const newInterval = parseInt((modal.querySelector('#setting-timer') as HTMLInputElement).value, 10);
+        const newLang = (modal.querySelector('#setting-lang') as HTMLSelectElement).value as any;
+
+        if (newInterval >= 4 && newInterval <= 10) {
+          timerInterval = newInterval * 1000;
+          voiceLanguage = newLang;
+          
+          if (isPlaying) {
+            pauseTimer();
+            startTimer();
           }
+          document.body.removeChild(modal);
+          CustomAlert("Settings Saved", "Your game settings have been updated.", "info");
+        } else {
+          CustomAlert("Invalid Interval", "Please enter a value between 4 and 10.", "error");
         }
       });
+
+      document.body.appendChild(modal);
     });
 
     gameState.onNumberCalled = (num: number) => {

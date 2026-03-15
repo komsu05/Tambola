@@ -3,11 +3,11 @@ import { navigate } from '../main';
 export function HomeView(): HTMLElement {
   const container = document.createElement('div');
   container.className = 'home-container fade-in';
-  
+
   container.innerHTML = `
     <header class="home-header">
       <i class="fa-solid fa-ticket fa-3x logo-icon"></i>
-      <h1 class="main-title">Tambola Portal</h1>
+      <h1 class="main-title">Tambola</h1>
       <p class="subtitle">Play anywhere, anytime.</p>
     </header>
     

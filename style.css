@@ -9,6 +9,7 @@
   --font-family: 'Outfit', sans-serif;
   --border-radius: 12px;
   --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --navy-blue: #000080;
 }
 
 * {
@@ -54,33 +55,49 @@ body {
 .home-container {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   flex-grow: 1;
-  padding: 2rem;
+  padding: 3rem 2rem 4rem 2rem;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/home-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
 }
 
 .home-header {
-  margin-bottom: 3rem;
+  margin-bottom: 0;
 }
 
 .logo-icon {
-  color: var(--primary-color);
+  color: var(--navy-blue);
   margin-bottom: 1rem;
 }
 
 .main-title {
   font-size: 2.2rem;
   font-weight: 800;
-  color: var(--primary-color);
+  color: var(--navy-blue);
   margin-bottom: 0.5rem;
   letter-spacing: -0.5px;
 }
 
 .subtitle {
   font-size: 1rem;
-  color: var(--text-light);
+  color: var(--navy-blue);
+  font-weight: 600;
 }
 
 .home-buttons {
