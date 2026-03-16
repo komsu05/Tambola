@@ -49,26 +49,41 @@ export class VoiceUtils {
   }
 
   /**
+   * Promise that resolves when voices are loaded.
+   */
+  public static waitForVoices(): Promise<void> {
+    return new Promise((resolve) => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        resolve();
+        return;
+      }
+      const handler = () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', handler);
+        resolve();
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', handler);
+      // Fallback for browsers that don't fire voiceschanged if already loaded
+      setTimeout(resolve, 1000);
+    });
+  }
+
+  /**
    * Finds the best available Telugu voice.
    */
   public static getTeluguVoice(): SpeechSynthesisVoice | null {
     const voices = window.speechSynthesis.getVoices();
     if (voices.length === 0) return null;
 
-    // Direct match for Telugu lang codes
+    // Common Telugu lang codes
     const teluguLangs = ['te-IN', 'te_IN', 'te'];
     
-    // 1st Priority: Exact lang match
-    let voice = voices.find(v => teluguLangs.includes(v.lang));
+    // 1st Priority: Exact lang match or starts with 'te'
+    let voice = voices.find(v => teluguLangs.includes(v.lang) || v.lang.startsWith('te'));
     
-    // 2nd Priority: Name contains "Telugu"
+    // 2nd Priority: Name contains "Telugu" or "Google" + "te"
     if (!voice) {
       voice = voices.find(v => v.name.toLowerCase().includes('telugu'));
-    }
-
-    // 3rd Priority: Starts with 'te'
-    if (!voice) {
-      voice = voices.find(v => v.lang.startsWith('te'));
     }
 
     return voice || null;

@@ -1,5 +1,6 @@
 :root {
-  --primary-color: #d32f2f; /* Red from the screenshot for a classic Tambola feel */
+  --primary-color: #d32f2f;
+  /* Red from the screenshot for a classic Tambola feel */
   --primary-hover: #b71c1c;
   --secondary-color: #212121;
   --bg-color: #f5f5f5;
@@ -32,10 +33,11 @@ body {
 
 #app {
   width: 100%;
-  max-width: 480px; /* Mobile friendly limit */
+  max-width: 480px;
+  /* Mobile friendly limit */
   min-height: 100vh;
   background: var(--card-bg);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -47,8 +49,15 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Home View */
@@ -126,7 +135,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.primary-btn:hover, .primary-btn:active {
+.primary-btn:hover,
+.primary-btn:active {
   background: var(--primary-hover);
   transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(211, 47, 47, 0.4);
@@ -140,6 +150,31 @@ body {
 button {
   outline: none;
 }
+
 button:active {
   transform: scale(0.97);
+}
+
+/* Near Complete Indicator */
+.near-complete {
+  animation: near-complete-pulse 1.2s infinite alternate ease-in-out !important;
+  background-color: #ffa726 !important; /* Orange */
+  box-shadow: 0 0 10px rgba(255, 152, 0, 0.4) !important;
+  position: relative !important;
+  z-index: 10 !important;
+  font-weight: 900 !important;
+  color: white !important;
+}
+
+@keyframes near-complete-pulse {
+  0% {
+    background-color: #ffa726 !important;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.3) !important;
+  }
+  100% {
+    background-color: #ef5350 !important; /* Medium Red */
+    transform: scale(1.12);
+    box-shadow: 0 0 18px rgba(211, 47, 47, 0.6) !important;
+  }
 }
